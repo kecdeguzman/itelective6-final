@@ -1,27 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_loginpage/views/login.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-
-void main() => runApp(MyApp());
-
-class MyApp extends StatelessWidget {
-  final appTitle = 'Drawer Demo';
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: appTitle,
-      home: MyHomePage(title: appTitle),
-      theme: ThemeData(
-        primaryColor: Color(0xFF6200EE),
-      ),
-    );
-  }
-}
+import 'package:flutter_loginpage/services/firebase_authentication.dart';
+import 'package:provider/provider.dart';
+import '/models/reg_users.dart';
 
 class MyHomePage extends StatefulWidget {
-  final String title;
-
-  MyHomePage({Key? key, required this.title}) : super(key: key);
+  const MyHomePage({Key? key}) : super(key: key);
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
@@ -29,11 +16,21 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _selectedDestination = 0;
+  late List<RegUsers> allusers;
+  late bool todisplay;
+  late RegUsers currentUser;
+  final db = FirebaseFirestore.instance;
+  @override
+  void initState() {
+    super.initState();
+    allusers = [];
+    todisplay = false;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final textTheme = theme.textTheme;
+    RegUsers usr = context.read<Firebase_Authentication>().currentUser;
+    print("HomeUI" + usr.display.toString() + " " + usr.displayname);
 
     return Scaffold(
         appBar: PreferredSize(
@@ -41,7 +38,6 @@ class _MyHomePageState extends State<MyHomePage> {
           child: AppBar(
             leading:
                 IconButton(onPressed: () {}, icon: Icon(FontAwesomeIcons.home)),
-            title: Text("SHANGHAI CONSERVATORY OF MUSIC"),
           ),
         ),
         endDrawer: Drawer(
@@ -64,15 +60,15 @@ class _MyHomePageState extends State<MyHomePage> {
                       decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           image: DecorationImage(
-                              image: AssetImage("images/profile.jpg"),
+                              image: NetworkImage(usr.photoUrl),
                               fit: BoxFit.fill)),
                     ),
                     Text(
-                      "Kairn Ellis de Guzman",
+                      usr.displayname,
                       style: TextStyle(fontSize: 22, color: Colors.white),
                     ),
                     Text(
-                      "kecdeguzman@addu.edu.ph",
+                      usr.email,
                       style: TextStyle(color: Colors.white),
                     )
                   ],
@@ -126,758 +122,73 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               ListTile(
                 leading: Icon(FontAwesomeIcons.powerOff),
-                title: Text('Logout'),
+                title: Text("Logout"),
                 selected: _selectedDestination == 6,
-                onTap: () => selectDestination(6),
+                onTap: () async {
+                  await Firebase_Authentication()
+                      .logOut(context)
+                      .whenComplete(() {
+                    Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                            builder: (context) => const LoginView()),
+                        (route) => false);
+                  });
+                },
               ),
             ],
           ),
         ),
         body: Container(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                margin: EdgeInsets.only(
-                  top: 40,
-                  left: 300,
-                ),
-                child: Text(
-                  "Course Overview",
-                  style: TextStyle(fontSize: 50, fontWeight: FontWeight.bold),
-                ),
-              ),
-              Container(
-                child: new Container(
-                  height: 800,
-                  child: GridView.count(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    padding: EdgeInsets.fromLTRB(300, 50, 300, 0),
-                    childAspectRatio: 4 / 5,
-                    children: [
-                      Container(
+            alignment: Alignment.center,
+            height: MediaQuery.of(context).size.height,
+            width: MediaQuery.of(context).size.width,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: db.collection('items').snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return Center(
+                    child: CircularProgressIndicator(),
+                  );
+                } else
+                  return ListView(
+                    children: snapshot.data!.docs.map((doc) {
+                      return Container(
+                        height: MediaQuery.of(context).size.height * .10,
                         child: Card(
-                          elevation: 20,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20.0)),
-                          child: Column(
-                            children: [
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 5,
-                                  bottom: 5,
-                                  left: 5,
-                                  right: 5,
-                                ),
-                                height: 250,
-                                width: 450,
-                                decoration: BoxDecoration(
-                                    shape: BoxShape.rectangle,
-                                    borderRadius: BorderRadius.only(
-                                      topRight: Radius.circular(20.0),
-                                      topLeft: Radius.circular(20.0),
-                                    ),
-                                    image: DecorationImage(
-                                        image: AssetImage("images/guitar.png"),
-                                        fit: BoxFit.fill)),
-                              ),
-                              Divider(
-                                height: 1,
-                                thickness: 2,
-                              ),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  left: 5,
-                                  top: 10,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      FontAwesomeIcons.guitar,
-                                      color: Colors.grey,
-                                    ),
-                                    Padding(
-                                        padding: EdgeInsets.only(
-                                      left: 5,
-                                    )),
-                                    Text(
-                                      "Stringed Instrument",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
+                          child: ListTile(
+                            title: Text((doc.data() as Map)['name']),
+                            leading: Image.network(
+                              (doc.data() as Map)['photoUrl'],
+                              height: MediaQuery.of(context).size.height * .50,
+                              fit: BoxFit.fill,
+                              filterQuality: FilterQuality.high,
+                            ),
+                            trailing: TextButton(
+                              child: Padding(
+                                padding: const EdgeInsets.all(5.0),
+                                child: Text(
+                                  'More Information',
+                                  style: TextStyle(color: Colors.white),
                                 ),
                               ),
-                              Container(
-                                child: Row(
-                                  children: [
-                                    Padding(
-                                        padding: EdgeInsets.only(
-                                      left: 15,
-                                      top: 50,
-                                    )),
-                                    Text(
-                                      "Course: Guitar",
-                                      style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                  height: 100,
-                                  width: 400,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.grey,
-                                    ),
-                                    //  borderRadius: BorderRadius.circular(10.0),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      "This course will teach students the basics of the stringed instrument Guitar",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(fontSize: 18),
-                                    ),
+                              style: TextButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  textStyle: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.0),
                                   )),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 40,
-                                ),
-                                height: 40,
-                                width: MediaQuery.of(context).size.width * .10,
-                                child: TextButton(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(5.0),
-                                    child: Text(
-                                      'Enroll Course',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      textStyle: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10.0),
-                                      )),
-                                  onPressed: () {},
-                                ),
-                              ),
-                            ],
+                              onPressed: () {},
+                            ),
                           ),
                         ),
-                      ),
-                      Container(
-                        child: Card(
-                          elevation: 20,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20.0)),
-                          child: Column(
-                            children: [
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 5,
-                                  bottom: 5,
-                                  left: 5,
-                                  right: 5,
-                                ),
-                                height: 250,
-                                width: 450,
-                                decoration: BoxDecoration(
-                                    shape: BoxShape.rectangle,
-                                    borderRadius: BorderRadius.only(
-                                      topRight: Radius.circular(20.0),
-                                      topLeft: Radius.circular(20.0),
-                                    ),
-                                    image: DecorationImage(
-                                        image: AssetImage("images/drums.jpeg"),
-                                        fit: BoxFit.fill)),
-                              ),
-                              Divider(
-                                height: 1,
-                                thickness: 2,
-                              ),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  left: 5,
-                                  top: 10,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      FontAwesomeIcons.drum,
-                                      color: Colors.grey,
-                                    ),
-                                    Padding(
-                                        padding: EdgeInsets.only(
-                                      left: 5,
-                                    )),
-                                    Text(
-                                      "Percussion Instrument",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                child: Row(
-                                  children: [
-                                    Padding(
-                                        padding: EdgeInsets.only(
-                                      left: 15,
-                                      top: 50,
-                                    )),
-                                    Text(
-                                      "Course: Drums",
-                                      style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                  height: 100,
-                                  width: 400,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.grey,
-                                    ),
-                                    //  borderRadius: BorderRadius.circular(10.0),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      "This course will teach students the basics of the percussion instrument Drums",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(fontSize: 18),
-                                    ),
-                                  )),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 40,
-                                ),
-                                height: 40,
-                                width: MediaQuery.of(context).size.width * .10,
-                                child: TextButton(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(5.0),
-                                    child: Text(
-                                      'Enroll Course',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      textStyle: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10.0),
-                                      )),
-                                  onPressed: () {},
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Container(
-                        child: Card(
-                          elevation: 20,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20.0)),
-                          child: Column(
-                            children: [
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 5,
-                                  bottom: 5,
-                                  left: 5,
-                                  right: 5,
-                                ),
-                                height: 250,
-                                width: 450,
-                                decoration: BoxDecoration(
-                                    shape: BoxShape.rectangle,
-                                    borderRadius: BorderRadius.only(
-                                      topRight: Radius.circular(20.0),
-                                      topLeft: Radius.circular(20.0),
-                                    ),
-                                    image: DecorationImage(
-                                        image: AssetImage("images/flute.jpg"),
-                                        fit: BoxFit.fill)),
-                              ),
-                              Divider(
-                                height: 1,
-                                thickness: 2,
-                              ),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  left: 5,
-                                  top: 10,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      FontAwesomeIcons.guitar,
-                                      color: Colors.grey,
-                                    ),
-                                    Padding(
-                                        padding: EdgeInsets.only(
-                                      left: 5,
-                                    )),
-                                    Text(
-                                      "Woodwind Instrument",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                child: Row(
-                                  children: [
-                                    Padding(
-                                        padding: EdgeInsets.only(
-                                      left: 15,
-                                      top: 50,
-                                    )),
-                                    Text(
-                                      "Course: Flute",
-                                      style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                  height: 100,
-                                  width: 400,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.grey,
-                                    ),
-                                    //  borderRadius: BorderRadius.circular(10.0),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      "This course will teach students the basics of the woodwind instrument Flute",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(fontSize: 18),
-                                    ),
-                                  )),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 40,
-                                ),
-                                height: 40,
-                                width: MediaQuery.of(context).size.width * .10,
-                                child: TextButton(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(5.0),
-                                    child: Text(
-                                      'Enroll Course',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      textStyle: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10.0),
-                                      )),
-                                  onPressed: () {},
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Container(
-                        child: Card(
-                          elevation: 20,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20.0)),
-                          child: Column(
-                            children: [
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 5,
-                                  bottom: 5,
-                                  left: 5,
-                                  right: 5,
-                                ),
-                                height: 250,
-                                width: 450,
-                                decoration: BoxDecoration(
-                                    shape: BoxShape.rectangle,
-                                    borderRadius: BorderRadius.only(
-                                      topRight: Radius.circular(20.0),
-                                      topLeft: Radius.circular(20.0),
-                                    ),
-                                    image: DecorationImage(
-                                        image: AssetImage("images/piano.jpg"),
-                                        fit: BoxFit.fill)),
-                              ),
-                              Divider(
-                                height: 1,
-                                thickness: 2,
-                              ),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  left: 5,
-                                  top: 10,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      FontAwesomeIcons.guitar,
-                                      color: Colors.grey,
-                                    ),
-                                    Padding(
-                                        padding: EdgeInsets.only(
-                                      left: 5,
-                                    )),
-                                    Text(
-                                      "Keyboard Instrument",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                child: Row(
-                                  children: [
-                                    Padding(
-                                        padding: EdgeInsets.only(
-                                      left: 15,
-                                      top: 50,
-                                    )),
-                                    Text(
-                                      "Course: Piano",
-                                      style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                  height: 100,
-                                  width: 400,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.grey,
-                                    ),
-                                    //  borderRadius: BorderRadius.circular(10.0),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      "This course will teach students the basics of the keyboard instrument Piano",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(fontSize: 18),
-                                    ),
-                                  )),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 40,
-                                ),
-                                height: 40,
-                                width: MediaQuery.of(context).size.width * .10,
-                                child: TextButton(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(5.0),
-                                    child: Text(
-                                      'Enroll Course',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      textStyle: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10.0),
-                                      )),
-                                  onPressed: () {},
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Container(
-                        child: Card(
-                          elevation: 20,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20.0)),
-                          child: Column(
-                            children: [
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 5,
-                                  bottom: 5,
-                                  left: 5,
-                                  right: 5,
-                                ),
-                                height: 250,
-                                width: 450,
-                                decoration: BoxDecoration(
-                                    shape: BoxShape.rectangle,
-                                    borderRadius: BorderRadius.only(
-                                      topRight: Radius.circular(20.0),
-                                      topLeft: Radius.circular(20.0),
-                                    ),
-                                    image: DecorationImage(
-                                        image: AssetImage("images/ukulele.jpg"),
-                                        fit: BoxFit.fill)),
-                              ),
-                              Divider(
-                                height: 1,
-                                thickness: 2,
-                              ),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  left: 5,
-                                  top: 10,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      FontAwesomeIcons.guitar,
-                                      color: Colors.grey,
-                                    ),
-                                    Padding(
-                                        padding: EdgeInsets.only(
-                                      left: 5,
-                                    )),
-                                    Text(
-                                      "Stringed Instrument",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                child: Row(
-                                  children: [
-                                    Padding(
-                                        padding: EdgeInsets.only(
-                                      left: 15,
-                                      top: 50,
-                                    )),
-                                    Text(
-                                      "Course: Ukulele",
-                                      style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                  height: 100,
-                                  width: 400,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.grey,
-                                    ),
-                                    //  borderRadius: BorderRadius.circular(10.0),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      "This course will teach students the basics of the stringed instrument Ukulele",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(fontSize: 18),
-                                    ),
-                                  )),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 40,
-                                ),
-                                height: 40,
-                                width: MediaQuery.of(context).size.width * .10,
-                                child: TextButton(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(5.0),
-                                    child: Text(
-                                      'Enroll Course',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      textStyle: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10.0),
-                                      )),
-                                  onPressed: () {},
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Container(
-                        child: Card(
-                          elevation: 20,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20.0)),
-                          child: Column(
-                            children: [
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 5,
-                                  bottom: 5,
-                                  left: 5,
-                                  right: 5,
-                                ),
-                                height: 250,
-                                width: 450,
-                                decoration: BoxDecoration(
-                                    shape: BoxShape.rectangle,
-                                    borderRadius: BorderRadius.only(
-                                      topRight: Radius.circular(20.0),
-                                      topLeft: Radius.circular(20.0),
-                                    ),
-                                    image: DecorationImage(
-                                        image: AssetImage("images/violin.jpg"),
-                                        fit: BoxFit.fill)),
-                              ),
-                              Divider(
-                                height: 1,
-                                thickness: 2,
-                              ),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  left: 5,
-                                  top: 10,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      FontAwesomeIcons.guitar,
-                                      color: Colors.grey,
-                                    ),
-                                    Padding(
-                                        padding: EdgeInsets.only(
-                                      left: 5,
-                                    )),
-                                    Text(
-                                      "Stringed Instrument",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                child: Row(
-                                  children: [
-                                    Padding(
-                                        padding: EdgeInsets.only(
-                                      left: 15,
-                                      top: 50,
-                                    )),
-                                    Text(
-                                      "Course: Violin",
-                                      style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                  height: 100,
-                                  width: 400,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.grey,
-                                    ),
-                                    //  borderRadius: BorderRadius.circular(10.0),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      "This course will teach students the basics of the stringed instrument Violin",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(fontSize: 18),
-                                    ),
-                                  )),
-                              Container(
-                                margin: EdgeInsets.only(
-                                  top: 40,
-                                ),
-                                height: 40,
-                                width: MediaQuery.of(context).size.width * .10,
-                                child: TextButton(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(5.0),
-                                    child: Text(
-                                      'Enroll Course',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      textStyle: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10.0),
-                                      )),
-                                  onPressed: () {},
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ));
+                      );
+                    }).toList(),
+                  );
+              },
+            )));
   }
 
   void selectDestination(int index) {

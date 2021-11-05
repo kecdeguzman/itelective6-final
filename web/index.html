@@ -20,17 +20,45 @@
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="itelective6_final">
+  <meta name="apple-mobile-web-app-title" content="flutter_loginpage">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <title>itelective6_final</title>
+  <title>Shanghai Music</title>
   <link rel="manifest" href="manifest.json">
+  <!-- Firebase Core SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
+  <!-- Firebase Auth SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-auth.js"></script>
+  <!-- Firebase Firestore SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-firestore.js"></script>
+
+  <!-- Google Signin Client ID -->
+  <meta 
+    name="google-signin-client_id" 
+    content="337844919057-7prqm7snufpoft5a3abpfvguvblgmjfa.apps.googleusercontent.com"
+  />
 </head>
 <body>
   <!-- This script installs service_worker.js to provide PWA functionality to
        application. For more information, see:
        https://developers.google.com/web/fundamentals/primers/service-workers -->
   <script>
+
+    // Your web app's Firebase configuration
+  const firebaseConfig = {
+  apiKey: "AIzaSyALhJXgDBac5yyQdJIYvAfwL5Li0Fg2nWE",
+  authDomain: "shanghaimusic-conservatory.firebaseapp.com",
+  projectId: "shanghaimusic-conservatory",
+  storageBucket: "shanghaimusic-conservatory.appspot.com",
+  messagingSenderId: "337844919057",
+  appId: "1:337844919057:web:394f789ba1153b12910ab0",
+  measurementId: "G-L3CGXC08QW"
+};
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+
+
     var serviceWorkerVersion = null;
     var scriptLoaded = false;
     function loadMainDartJs() {
